@@ -1,17 +1,409 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>2026E2EAPIAutomationFramework</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <groupId>com.spotify</groupId>
+    <artifactId>spotify-api-framework</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Spotify API Test Framework</name>
+    <description>
+        Production-grade Cucumber + RestAssured API test framework for Spotify APIs.
+        Uses PicoContainer DI, JsonPath payload management, OWNER config, and ExtentReports.
+    </description>
 
+    <!-- ================================================================ -->
+    <!-- PROPERTIES — single place to bump any version                     -->
+    <!-- ================================================================ -->
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <!-- Java -->
+        <java.version>21</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Cucumber -->
+        <cucumber.version>7.15.0</cucumber.version>
+
+        <!-- JUnit 5 -->
+        <junit.platform.version>1.10.2</junit.platform.version>
+        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+
+        <!-- REST Assured -->
+        <restassured.version>5.4.0</restassured.version>
+
+        <!-- JSON handling -->
+        <jayway.jsonpath.version>2.9.0</jayway.jsonpath.version>
+        <jackson.version>2.17.0</jackson.version>
+        <everit.json.schema.version>1.14.4</everit.json.schema.version>
+
+        <!-- Reporting -->
+        <extentreports.version>5.1.1</extentreports.version>
+
+        <!-- Logging -->
+        <log4j.version>2.23.1</log4j.version>
+
+        <!-- Assertions -->
+        <assertj.version>3.25.3</assertj.version>
+
+        <!-- Async polling -->
+        <awaitility.version>4.2.1</awaitility.version>
+
+        <!-- Config -->
+        <owner.version>1.0.12</owner.version>
+
+        <!-- Test data generation -->
+        <javafaker.version>1.0.2</javafaker.version>
+
+        <!-- Lombok (reduces boilerplate on POJOs/builders) -->
+        <lombok.version>1.18.32</lombok.version>
+
+        <!-- Maven plugins -->
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
+
+        <!-- Runtime defaults — overridable from CLI or Jenkins -->
+        <!-- Usage: mvn test -Denv=staging -Dtags="@smoke"      -->
+        <env>dev</env>
+        <tags>@regression</tags>
+        <threadCount>1</threadCount>
     </properties>
+
+    <!-- ================================================================ -->
+    <!-- DEPENDENCIES                                                       -->
+    <!-- ================================================================ -->
+    <dependencies>
+
+        <!-- CUCUMBER                                                       -->
+        <!-- cucumber-java and cucumber-picocontainer go to compile scope  -->
+        <!-- because step/hook classes live in src/main/java               -->
+          
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-picocontainer</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+
+        <!-- JUnit Platform engine — test scope, only needed to run tests -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit-platform-engine</artifactId>
+            <version>${cucumber.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUNIT 5                                                        -->
+          
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite</artifactId>
+            <version>${junit.platform.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- REST ASSURED                                                   -->
+        <!-- compile scope — ApiService is in src/main                     -->
+          
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${restassured.version}</version>
+            <exclusions>
+                <!-- Exclude groovy to avoid version conflicts -->
+                <exclusion>
+                    <groupId>org.codehaus.groovy</groupId>
+                    <artifactId>groovy</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- JSON Schema validation via REST Assured -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${restassured.version}</version>
+        </dependency>
+
+        <!-- JSON HANDLING                                                  -->
+
+        <!-- Jayway JsonPath — DocumentContext for payload manipulation -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>${jayway.jsonpath.version}</version>
+        </dependency>
+
+        <!-- Jackson — serialisation / deserialisation -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Everit JSON Schema — fine-grained schema validation -->
+        <dependency>
+            <groupId>com.github.erosb</groupId>
+            <artifactId>everit-json-schema</artifactId>
+            <version>${everit.json.schema.version}</version>
+        </dependency>
+
+        <!-- REPORTING — EXTENT REPORTS 5                                  -->
+          
+        <dependency>
+            <groupId>com.aventstack</groupId>
+            <artifactId>extentreports</artifactId>
+            <version>${extentreports.version}</version>
+        </dependency>
+
+        <!-- LOGGING — LOG4J 2                                             -->
+          
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <!-- SLF4J → Log4j2 bridge (REST Assured and most libs use SLF4J) -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <!-- ASSERTIONS — ASSERTJ (soft assertions)                        -->
+          
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+        </dependency>
+
+        <!-- ASYNC POLLING — AWAITILITY                                    -->
+          
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
+        </dependency>
+
+        <!-- CONFIGURATION — OWNER                                          -->
+          
+        <dependency>
+            <groupId>org.aeonbits.owner</groupId>
+            <artifactId>owner</artifactId>
+            <version>${owner.version}</version>
+        </dependency>
+
+        <!-- TEST DATA GENERATION — JAVA FAKER                             -->
+          
+        <dependency>
+            <groupId>com.github.javafaker</groupId>
+            <artifactId>javafaker</artifactId>
+            <version>${javafaker.version}</version>
+            <exclusions>
+                <!-- Avoid SnakeYAML version conflicts -->
+                <exclusion>
+                    <groupId>org.yaml</groupId>
+                    <artifactId>snakeyaml</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- SnakeYAML — explicit version to prevent conflict -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.2</version>
+        </dependency>
+
+        <!-- LOMBOK — boilerplate reduction on model/builder classes        -->
+          
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!-- ================================================================ -->
+    <!-- BUILD                                                              -->
+    <!-- ================================================================ -->
+    <build>
+        <plugins>
+
+            <!-- COMPILER                                                   -->
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
+                    <!-- Lombok annotation processing -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- SUREFIRE — JUnit 5 / Cucumber runner                      -->
+            <!--                                                            -->
+            <!-- CLI overrides:                                             -->
+            <!--   mvn test -Denv=staging                                  -->
+            <!--   mvn test -Dtags="@smoke"                                -->
+            <!--   mvn test -DthreadCount=4                                -->
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
+                <configuration>
+
+                    <!-- Discover JUnit Platform suite (TestRunner) -->
+                    <includes>
+                        <include>**/TestRunner.java</include>
+                    </includes>
+
+                    <!-- Pass runtime properties into the JVM -->
+                    <systemPropertyVariables>
+                        <env>${env}</env>
+                        <cucumber.filter.tags>${tags}</cucumber.filter.tags>
+                    </systemPropertyVariables>
+
+                    <!-- Parallel forking — default 1, overridden in CI profile -->
+                    <forkCount>${threadCount}</forkCount>
+                    <reuseForks>true</reuseForks>
+
+                    <!-- Always show output in console (useful in CI logs) -->
+                    <useFile>false</useFile>
+                    <trimStackTrace>false</trimStackTrace>
+
+                    <!-- Surefire XML reports for Jenkins test trend graphs -->
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+
+                </configuration>
+            </plugin>
+
+        </plugins>
+
+        <!-- Ensure src/main/resources are on the classpath at runtime -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+
+        <!-- Ensure src/test/resources are on the test classpath -->
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <filtering>false</filtering>
+            </testResource>
+        </testResources>
+
+    </build>
+
+    <!-- ================================================================ -->
+    <!-- PROFILES                                                           -->
+    <!-- ================================================================ -->
+    <profiles>
+
+        <!-- Default local dev profile -->
+        <profile>
+            <id>dev</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <env>dev</env>
+                <threadCount>1</threadCount>
+            </properties>
+        </profile>
+
+        <!-- Staging environment -->
+        <profile>
+            <id>staging</id>
+            <properties>
+                <env>staging</env>
+                <threadCount>1</threadCount>
+            </properties>
+        </profile>
+
+          
+        <!-- CI profile — used by Jenkins pipeline inside Docker           -->
+        <!--                                                                -->
+        <!-- Usage:                                                         -->
+        <!--   mvn test -Pci -Dtags="@smoke"                              -->
+        <!--   mvn test -Pci -Denv=staging -Dtags="@regression"           -->
+          
+        <profile>
+            <id>ci</id>
+            <properties>
+                <env>staging</env>
+                <threadCount>4</threadCount>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.plugin.version}</version>
+                        <configuration>
+                            <!-- Required in headless Docker containers -->
+                            <argLine>-Djava.awt.headless=true</argLine>
+                            <systemPropertyVariables>
+                                <env>${env}</env>
+                                <cucumber.filter.tags>${tags}</cucumber.filter.tags>
+                            </systemPropertyVariables>
+                            <forkCount>${threadCount}</forkCount>
+                            <reuseForks>true</reuseForks>
+                            <useFile>false</useFile>
+                            <trimStackTrace>false</trimStackTrace>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 
 </project>
